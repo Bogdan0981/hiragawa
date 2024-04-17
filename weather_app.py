@@ -25,7 +25,7 @@ def main_page():
         st.title('Chose your city')
         st.text_input('Write your city here')
         if st.button('Show weather'):
-            st.session_state = 'weather'
+            weather_page()
 main_page()
 
 
@@ -44,3 +44,8 @@ def weather_page():
 
     st.markdown('***Current temperatue***')
     st.markdown('**24C**')
+    if st.button("Вернуться на главную страницу"):
+        main_page()
+
+
+
