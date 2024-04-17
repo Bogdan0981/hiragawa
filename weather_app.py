@@ -1,6 +1,24 @@
 import streamlit as st
 
 
+def weather_page():
+    st.title('Weather in Prague')
+    st.caption('There is a weather in Prague')
+    background_img = 'https://situr.ru/media/k2/items/cache/6f43b5263fbba79c5962514b85d34738_XL.webp'
+
+    st.markdown(f"""
+    .stApp{{
+            background-image: url({background_img})
+            background-size: cover;
+            background-position: center;
+    }}
+    """, unsafe_allow_html=True)
+
+    st.markdown('***Current temperatue***')
+    st.markdown('**24C**')
+    if st.button("Вернуться на главную страницу"):
+        main_page()
+
 def main_page():
     background_image_url = "https://img1.akspic.ru/crops/5/2/9/8/68925/68925-oblako-bassejn-nebo-palma-otel-1920x1080.jpg"  
 
@@ -27,25 +45,3 @@ def main_page():
         if st.button('Show weather'):
             weather_page()
 main_page()
-
-
-def weather_page():
-    st.title('Weather in Prague')
-    st.caption('There is a weather in Prague')
-    background_img = 'https://situr.ru/media/k2/items/cache/6f43b5263fbba79c5962514b85d34738_XL.webp'
-
-    st.markdown(f"""
-    .stApp{{
-            background-img: url({background_img})
-            background-size: cover;
-            background-position: center;
-    }}
-    """, unsafe_allow_html=True)
-
-    st.markdown('***Current temperatue***')
-    st.markdown('**24C**')
-    if st.button("Вернуться на главную страницу"):
-        main_page()
-
-
-
