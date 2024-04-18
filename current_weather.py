@@ -5,7 +5,7 @@ import time  # Импортируем модуль time
 
 # Параметры для подключения к базе данных PostgreSQL
 db_config = {
-    "database": "database",
+    "database": "postgres",
     "user": "postgres",
     "password": "kb0904",
     "host": "localhost",
@@ -40,7 +40,7 @@ def save_data_to_db(weather_data):
         
         cursor.execute(
             """
-            INSERT INTO weather (record_time, temperature, humidity, clouds, wind_speed)
+            INSERT INTO current_weather (record_time, temperature, humidity, cloudiness, wind_speed)
             VALUES (%s, %s, %s, %s, %s)
             """,
             (now, weather_data['temperature'], weather_data['humidity'], weather_data['cloudiness'], weather_data['wind_speed'])

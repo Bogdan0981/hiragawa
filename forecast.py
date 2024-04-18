@@ -5,7 +5,7 @@ import time  # Импорт модуля time для задания паузы
 
 # Параметры для подключения к базе данных PostgreSQL
 db_config = {
-    "database": "database",
+    "database": "postgres",
     "user": "postgres",
     "password": "kb0904",
     "host": "localhost",
@@ -48,10 +48,10 @@ def save_forecast_to_db(forecasts):
         for forecast in forecasts:
             cursor.execute(
                 """
-                INSERT INTO forecast (max_temperature, min_temperature, humidity, clouds, wind_speed, forecast_date)
+                INSERT INTO forecast (date_time, temp_max, temp_min, humidity, cloudiness, wind_speed)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 """,
-                (forecast['temp_max'], forecast['temp_min'], forecast['humidity'], forecast['cloudiness'], forecast['wind_speed'], forecast['date_time'])
+                (forecast['date_time'], forecast['temp_min'], forecast['temp_max'], forecast['humidity'], forecast['cloudiness'], forecast['wind_speed'])
             )
 
         conn.commit()
