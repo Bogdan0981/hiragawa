@@ -1,6 +1,7 @@
 import streamlit as st
 import psycopg2
 import requests
+from datetime import datetime
 
 # Функция для проверки подключения к интернету
 def check_internet_connection():
@@ -33,25 +34,6 @@ def get_weather_data_from_api(city):
     else:
         return None
 
-# Функция для сохранения данных о погоде в базу данных PostgreSQL
-def save_weather_data_to_db(weather_data):
-    try:
-        cur.execute("""
-            INSERT INTO weather_data (record_time, temperature, humidity, cloudiness, wind_speed)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            weather_data['name'],
-            weather_data['main']['record_time'],
-            weather_data['main']['temperature'],
-            weather_data['main']['humidity'],
-            weather_data['main']['cloudiness'],
-            weather_data['man']['wind_speed']
-        ))
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        st.error(f"Ошибка при сохранении данных в базу данных: {e}")
-
 # Функция для отображения главной страницы
 def main_page():
     st.title("Приложение прогноза погоды")
@@ -63,7 +45,7 @@ def main_page():
             weather_data = get_weather_data_from_api(city_input)
             if weather_data:
                 st.session_state.weather_data = weather_data
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Город не найден. Попробуйте еще раз или используйте сохраненные данные.")
         else:
@@ -71,7 +53,7 @@ def main_page():
             weather_data = get_weather_data_from_db(city_input)
             if weather_data:
                 st.session_state.weather_data = weather_data
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Данные о погоде для данного города не найдены в базе данных.")
 
@@ -79,14 +61,18 @@ def main_page():
 def weather_page():
     st.title("Страница погоды")
     city_name = st.session_state.weather_data['name']
-    st.write(f"Погода в городе {city_name}:")
+    st.write(f"Погода в городе {city_name}:", datetime.now().strftime('%H:%M:%S'))
     current_weather = st.session_state.weather_data['main']
+    cloudiness = st.session_state.weather_data['clouds']
+    wind = st.session_state.weather_data['wind']
     st.write("Текущая погода:")
-    st.write(f"Температура: {current_weather['record_time']}°C")
-    st.write(f"Ощущается как: {current_weather['feels_like']}°C")
-    st.write(f"Минимальная температура: {current_weather['temp_min']}°C")
-    st.write(f"Максимальная температура: {current_weather['temp_max']}°C")
-    st.write(f"Влажность: {current_weather['humidity']}%")
+    st.write(f"Температура: {current_weather['temp']}°C")
+    st.write(f"Влажность: {current_weather['humidity']}")
+    st.write(f"Облачность: {cloudiness['all']}")
+    st.write(f"Скорость ветра: {wind['speed']}")
+    
+    # Отображение текущего времени
+    
 
 # Функция для получения данных о погоде из базы данных PostgreSQL
 def get_weather_data_from_db(city):
@@ -94,12 +80,12 @@ def get_weather_data_from_db(city):
     data = cur.fetchone()
     if data:
         return {
-            'name': data[0],
+            'record_time': data[0],
             'main': {
-                'temp': data[1],
-                'feels_like': data[2],
-                'temp_min': data[3],
-                'temp_max': data[4],
+                'temperature': data[1],
+                'humidity': data[2],
+                'cloudiness': data[3],
+                'wind_speed': data[4],
             }
         }
     else:
