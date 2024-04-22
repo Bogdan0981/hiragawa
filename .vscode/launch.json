@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/bogdan/Documents/cvut/python_БЛЯЯЯТЬ/ppy1/hiragawa",
+      "program": "/Users/bogdan/Documents/cvut/python_БЛЯЯЯТЬ/ppy1/hiragawa/build/Debug/outDebug"
+    }
+  ]
+}
