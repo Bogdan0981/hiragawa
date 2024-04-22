@@ -57,7 +57,7 @@ def main_page():
             if weather_data:
                 st.session_state.weather_data = weather_data
                 st.session_state.weather_forecast = get_weather_forecast_from_api(city_input)
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("Город не найден. Попробуйте еще раз или используйте сохраненные данные.")
         else:
@@ -65,7 +65,7 @@ def main_page():
             weather_data = get_weather_data_from_db(city_input)
             if weather_data:
                 st.session_state.weather_data = weather_data
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("Данные о погоде для данного города не найдены в базе данных.")
 
@@ -75,7 +75,7 @@ def weather_page():
     weather_data = st.session_state.get('weather_data')
     weather_forecast = st.session_state.get('weather_forecast')
     if weather_data:
-        city_name = weather_data.get('name')
+        city_name = weather_data.get('name')  # Проверяем, что данные о погоде существуют
         st.write(f"Погода в городе {city_name}:", datetime.now().strftime('%H:%M:%S'))
         current_weather = weather_data.get('main')
         cloudiness = weather_data.get('clouds')
@@ -88,7 +88,7 @@ def weather_page():
         else:
             st.warning("Данные об облачности отсутствуют.")
         st.write(f"Скорость ветра: {wind.get('speed')}")
-        
+
         # Отображение прогноза погоды на 4 дня
         st.write("Прогноз погоды на 4 дня:")
         if weather_forecast:
@@ -110,15 +110,18 @@ def weather_page():
                     st.write("---")
         else:
             st.error("Данные о прогнозе погоды отсутствуют.")
+        
+        if st.button("Вернуться на главную"):
+        # Удаляем ключи из session_state
+            if 'weather_data' in st.session_state:
+                del st.session_state['weather_data']
+            if 'weather_forecast' in st.session_state:
+                del st.session_state['weather_forecast']
+        # Перезапуск приложения
+            st.experimental_rerun()
+
     else:
         st.error("Данные о погоде отсутствуют. Пожалуйста, попробуйте еще раз или подключитесь к интернету.")
-
-    # Кнопка "Вернуться на главную"
-    if st.button("Вернуться на главную"):
-        st.session_state.weather_data = None
-        st.session_state.weather_forecast = None
-        main_page()
-
 
 # Функция для получения данных о погоде из базы данных PostgreSQL
 def get_weather_data_from_db(city):
