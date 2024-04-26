@@ -2,8 +2,9 @@ import streamlit as st
 import psycopg2
 import requests
 from datetime import datetime, timedelta
-# Задаиние стилей
+import json
 
+# Задание стилей
 
 # Функция для проверки подключения к интернету
 def check_internet_connection():
@@ -13,17 +14,14 @@ def check_internet_connection():
     except requests.ConnectionError:
         return False
 
-# Подключение к базе данных PostgreSQL
-conn = psycopg2.connect(
-    dbname="postgres",
-    user="postgres",
-    password="kb0904",
-    host="localhost",
-    port="5433"
-)
-
-# Создание курсора для работы с базой данных
-cur = conn.cursor()
+def get_connection():
+    return psycopg2.connect(
+        dbname="postgres",
+        user="postgres",
+        password="kb0904",
+        host="localhost",
+        port="5433"
+    )
 
 # Функция для получения данных о погоде из API OpenWeather
 def get_weather_data_from_api(city):
@@ -41,30 +39,48 @@ def get_weather_forecast_from_api(city):
 
 # Функция для получения данных о погоде из базы данных PostgreSQL
 def get_weather_data_from_db(city):
-    cur.execute("SELECT temperature, humidity, cloudiness, wind_speed FROM current_weather WHERE city_name = %s", (city,))
-    data = cur.fetchone()
-    if data:
-        return {
-            'name': city,
-            'main': {
-                'temp': data[0],
-                'humidity': data[1],
-            },
-            'clouds': {
-                'all': data[2],
-            },
-            'wind': {
-                'speed': data[3],
-            }
-        }
-    else:
-        return None
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT temperature, humidity, cloudiness, wind_speed, city_name name FROM current_weather WHERE city_name = %s", (city,))
+            data = cur.fetchone()
+            if data:
+                return {
+                    'name': city,
+                    'main': {
+                        'temp': data[0],
+                        'humidity': data[1],
+                    },
+                    'clouds': {
+                        'all': data[2],
+                    },
+                    'wind': {
+                        'speed': data[3],
+                    }
+                }
+            else:
+                return None
 
 # Функция для получения прогноза погоды из базы данных PostgreSQL
 def get_weather_forecast_from_db(city):
-    cur.execute("SELECT forecast_data FROM forecast WHERE city_name = %s", (city,))
-    data = cur.fetchone()
-    return data[0] if data else None
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT date_time temp_min, temp_max, humidity, cloudiness, wind_speed, city_name FROM forecast WHERE city_name = %s", (city,))
+            data = cur.fetchone()
+            if data and data[0]:
+                forecast_data = data[0]
+                # Убедитесь, что данные являются строкой перед десериализацией
+                if isinstance(forecast_data, str):
+                    try:
+                        return json.loads(forecast_data)
+                    except json.JSONDecodeError as e:
+                        st.error(f"Ошибка декодирования данных прогноза погоды: {e}")
+                        return None
+                else:
+                    st.error(f"Ожидались данные в формате строки, получен тип {type(forecast_data)}")
+                    return None
+            else:
+                return None
+
 
 # Функция для отображения главной страницы
 def main_page():
@@ -154,13 +170,10 @@ def display_forecast(weather_forecast):
             st.write(f"Скорость ветра: {wind_speed}")
             st.write("---")
 
-
 # Основной блок кода Streamlit
 if 'weather_data' not in st.session_state:
     main_page()
 else:
     weather_page()
 
-# Закрытие соединения с базой данных
-cur.close()
-conn.close()
+
