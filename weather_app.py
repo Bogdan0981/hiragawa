@@ -3,177 +3,253 @@ import psycopg2
 import requests
 from datetime import datetime, timedelta
 import json
+import pandas as pd
+import matplotlib.pyplot as plt
+import plotly.graph_objs as go
+from scipy.interpolate import make_interp_spline
+import numpy as np
 
-# Задание стилей
 
-# Функция для проверки подключения к интернету
-def check_internet_connection():
+
+# проверка подключения к инету
+def check_connection():
     try:
-        requests.get("http://www.google.com", timeout=3)
+        requests.get('http://www.google.com', timeout=5)
         return True
     except requests.ConnectionError:
         return False
+    
 
-def get_connection():
-    return psycopg2.connect(
-        dbname="postgres",
-        user="postgres",
-        password="kb0904",
-        host="localhost",
-        port="5433"
+# подключение к бд
+def connect_db():
+    return psycopg2.connect (
+        dbname = 'postgres',
+        user = 'postgres',
+        password = 'kb0904',
+        host = 'localhost',
+        port = '5433'
     )
+# функция connect_db возвращает обьект, котороый находиться в бд, то есть у нас есть все таблицы из бд
 
-# Функция для получения данных о погоде из API OpenWeather
-def get_weather_data_from_api(city):
-    api_key = "2624fd25b511ea7d85afbcb3f9439698"
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
-    response = requests.get(url)
-    return response.json() if response.status_code == 200 else None
+# получение данных текущей погоды с OpenWeather
+def get_current_weather(city):
+    api_key = '2624fd25b511ea7d85afbcb3f9439698'
+    response = requests.get(url=f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric")
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return None
 
-# Функция для получения прогноза погоды на 5 дней из API OpenWeather
-def get_weather_forecast_from_api(city):
-    api_key = "2624fd25b511ea7d85afbcb3f9439698"
-    url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={api_key}&units=metric"
-    response = requests.get(url)
-    return response.json() if response.status_code == 200 else None
+# получение данных прогноза погоды с OpenWeather
+def get_forecast(city):
+    api_key = '2624fd25b511ea7d85afbcb3f9439698'
+    response = requests.get(url=f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={api_key}&units=metric")
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return None
+    
 
-# Функция для получения данных о погоде из базы данных PostgreSQL
-def get_weather_data_from_db(city):
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT temperature, humidity, cloudiness, wind_speed, city_name name FROM current_weather WHERE city_name = %s", (city,))
+# получение данных из бд
+def get_current_weather_from_db(city):
+    with connect_db() as con:
+        with con.cursor() as cur:
+            cur.execute('SELECT record_time, temperature, humidity, cloudiness, wind_speed, city_name FROM current_weather WHERE city_name = %s ORDER BY record_time DESC LIMIT 1', (city,))
             data = cur.fetchone()
             if data:
-                return {
+                return{
                     'name': city,
                     'main': {
-                        'temp': data[0],
-                        'humidity': data[1],
+                        'temp': data[1],
+                        'humidity': data[2]
                     },
                     'clouds': {
-                        'all': data[2],
+                        'all': data[3],
                     },
                     'wind': {
-                        'speed': data[3],
+                        'speed': data[4],
                     }
                 }
             else:
                 return None
-
-# Функция для получения прогноза погоды из базы данных PostgreSQL
-def get_weather_forecast_from_db(city):
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT date_time temp_min, temp_max, humidity, cloudiness, wind_speed, city_name FROM forecast WHERE city_name = %s", (city,))
-            data = cur.fetchone()
-            if data and data[0]:
-                forecast_data = data[0]
-                # Убедитесь, что данные являются строкой перед десериализацией
-                if isinstance(forecast_data, str):
-                    try:
-                        return json.loads(forecast_data)
-                    except json.JSONDecodeError as e:
-                        st.error(f"Ошибка декодирования данных прогноза погоды: {e}")
-                        return None
-                else:
-                    st.error(f"Ожидались данные в формате строки, получен тип {type(forecast_data)}")
-                    return None
+            
+# получение прогноза погоды из бд
+def get_forecast_from_db(city):
+    with connect_db() as con:
+        with con.cursor() as cur:
+            # Здесь меняем DESC на ASC, чтобы сортировать данные по возрастанию
+            cur.execute('SELECT date_time, temp_min, temp_max, humidity, cloudiness, wind_speed FROM forecast WHERE city_name = %s ORDER BY date_time ASC', (city,))
+            rows = cur.fetchall()
+            if rows:
+                forecast_list = []
+                for row in rows:
+                    forecast_entry = {
+                        'dt': int(datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S").timestamp()),  # Преобразуем date_time в timestamp
+                        'main': {
+                            'temp_min': row[1],
+                            'temp_max': row[2],
+                            'humidity': row[3]
+                        },
+                        'clouds': {
+                            'all': row[4]
+                        },
+                        'wind': {
+                            'speed': row[5]
+                        }
+                    }
+                    forecast_list.append(forecast_entry)
+                return {'list': forecast_list}  # Возвращаем словарь, имитирующий структуру API
             else:
-                return None
+                print(f'No forecast data found for city: {city}')
+    return None
 
-
-# Функция для отображения главной страницы
+# функция отображения главной страницы
 def main_page():
-    st.title("Приложение прогноза погоды")
-    st.sidebar.title("Сайдбар")
-    st.sidebar.write("Введите название города:")
-    city_input = st.sidebar.text_input("Название города", key="city", on_change=load_weather)
+    st.title('Application to see current weather and forecast for 5 days')
+    st.write("This application which was created by Bohdan Kalgan and Oleksandr Sytnyk is used to see current weeather in your city and forecast in 5 days")
+    st.sidebar.title("Please write your city here to see weather")
+    st.sidebar.write('Please write your city and press "Enter" or press the buttont tio see the weather')
+    st.sidebar.text_input('City name:', key='city', on_change=load_weater)
 
-    # Добавляем кнопку для подтверждения ввода
-    if st.sidebar.button("Показать погоду"):
-        load_weather()
+    if st.sidebar.button('Show weather'):
+        load_weater()
 
-def load_weather():
+# функция заргрузки погоды, она чекает есть инет или нету и в зависимисти от инета выбирает спопоб выписывания погоды
+def load_weater():
     city_input = st.session_state.city
     if city_input:
-        if check_internet_connection():
-            weather_data = get_weather_data_from_api(city_input)
-            weather_forecast = get_weather_forecast_from_api(city_input) if weather_data else None
+        if check_connection():
+            current_weather = get_current_weather(city_input)
+            forecast = get_forecast(city_input)
         else:
-            st.warning("Отсутствует подключение к интернету. Данные будут взяты из базы данных.")
-            weather_data = get_weather_data_from_db(city_input)
-            weather_forecast = get_weather_forecast_from_db(city_input)
+            st.warning('No internet connection. Data was taken from databsse')
+            current_weather = get_current_weather_from_db(city_input)
+            forecast = get_forecast_from_db(city_input)
         
-        if weather_data and weather_forecast:
-            st.session_state.weather_data = weather_data
-            st.session_state.weather_forecast = weather_forecast
+        if current_weather and forecast:
+            st.session_state.current_weather = current_weather
+            st.session_state.forecast = forecast
             st.rerun()
         else:
-            st.error("Данные о погоде не найдены. Попробуйте еще раз.")
+            st.error('There is not weather data. Please, try again')
 
-# Функция для отображения страницы погоды
+# функция для отображения страницы погоды
 def weather_page():
-    st.title("Страница погоды")
-    if st.button("Вернуться на главную"):
-        if 'weather_data' in st.session_state:
-            del st.session_state['weather_data']
-        if 'weather_forecast' in st.session_state:
-            del st.session_state['weather_forecast']
+    st.title('Weather page for show current weather and forecast')
+    if st.button('Return to main page'):
+        if "current_weather" in st.session_state:
+            del st.session_state['current_weather']
+        if "forecast" in st.session_state:
+            del st.session_state['forecast']
         st.rerun()
-    weather_data = st.session_state.get('weather_data')
-    weather_forecast = st.session_state.get('weather_forecast')
-    if weather_data:
-        display_weather(weather_data, weather_forecast)
+    current_weather = st.session_state.get('current_weather')
+    forecast = st.session_state.get('forecast')
+    if current_weather:
+        display_weather(current_weather, forecast)
     else:
-        st.error("Данные о погоде отсутствуют. Пожалуйста, попробуйте еще раз.")
+        st.error('There is not weather data. Please, try again')
 
-def display_weather(weather_data, weather_forecast):
-    city_name = weather_data.get('name')
-    st.write(f"Погода в городе {city_name}:", datetime.now().strftime('%H:%M:%S'))
-    current_weather = weather_data.get('main')
-    cloudiness = weather_data.get('clouds')
-    wind = weather_data.get('wind')
-    st.write("Текущая погода:")
-    st.write(f"Температура: {current_weather.get('temp')}°C")
-    st.write(f"Влажность: {current_weather.get('humidity')}")
-    if cloudiness:
-        st.write(f"Облачность: {cloudiness.get('all')}")
-    else:
-        st.warning("Данные об облачности отсутствуют.")
-    if wind:
-        st.write(f"Скорость ветра: {wind.get('speed')}")
-    else:
-        st.warning("Данные о ветре отсутствуют.")
+import streamlit as st
+from datetime import datetime
+import plotly.graph_objs as go
 
-    st.write("Прогноз погоды на 4 дня:")
-    if weather_forecast:
-        display_forecast(weather_forecast)
-    else:
-        st.error("Данные о прогнозе погоды отсутствуют.")
+def display_24_hour_forecast(forecast_24_hours_data):
+    st.subheader("Прогноз погоды на 24 часа")
+    
+    # Сбор данных для графика
+    times = [datetime.fromtimestamp(forecast['dt']).strftime('%H:%M') for forecast in forecast_24_hours_data]
+    temperatures = [forecast['main']['temp'] for forecast in forecast_24_hours_data]
+    wind_speeds = [forecast['wind']['speed'] for forecast in forecast_24_hours_data]
 
-def display_forecast(weather_forecast):
-    today = datetime.now().date()  # Получаем текущую дату
-    forecast_list = weather_forecast.get('list')
-    dates_set = set()
+    # Вывод данных
+    for time, temp, wind in zip(times, temperatures, wind_speeds):
+        st.write(f"{time}: Температура {temp}°C, Скорость ветра {wind} м/с")
+
+    # Создание графика
+    trace_temp = go.Scatter(
+        x=times, 
+        y=temperatures, 
+        mode='lines+text',
+        text=[f"{t}°C" for t in temperatures],
+        textposition="top center",
+        line=dict(width=3, shape='spline', smoothing=1, color='#90a955'),
+        textfont=dict(size=16)
+    )
+    
+    # Аннотации для скорости ветра
+    annotations = [
+        dict(
+            x=time, 
+            y=temp - 1,  # немного ниже температуры для визуального разделения
+            text=f"{wind} м/с", 
+            showarrow=False,
+            xanchor='center',
+            yanchor='top',
+            font=dict(color='blue', size=16)
+        ) for time, temp, wind in zip(times, temperatures, wind_speeds)
+    ]
+    
+    # Макет графика
+    layout = go.Layout(
+        title='Изменение температуры по времени',
+        xaxis=dict(tickfont=dict(size=15)),
+        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+        margin=dict(l=40, r=40, t=40, b=40),
+        showlegend=False,
+        annotations=annotations
+    )
+    
+    # Построение и отображение графика
+    fig = go.Figure(data=[trace_temp], layout=layout)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# функция для отображения текущей погоды
+def display_weather(current_weather, forecast):
+    city_name = current_weather.get('name')
+    st.subheader(f'Weather in {city_name}:', datetime.now().strftime("%H:%M:%S"))
+    cur_weather = current_weather.get('main')
+    cloudiness = current_weather.get('clouds')
+    wind = current_weather.get('wind')
+    st.write('Current weather: ')
+    st.write(f'Temperaturte: {cur_weather.get('temp')}°C')
+    st.write(f'Humdity: {cur_weather.get('humudity')}')
+    st.write(f'Cloudiness: {cloudiness.get('all')}')
+    st.write(f'Wind speed: {wind.get('speed')}')
+
+
+    st.subheader('Forecast for 5 days')
+    if forecast:
+        display_forecast(forecast)
+    else:
+        st.error('There is not data about current weather. Please, try again')
+
+
+# фукуция отображение прогноза погоды
+def display_forecast(forecast):
+    today = datetime.now().date()
+    forecast_list = forecast.get('list')
+    date_set = set()
     for forecast in forecast_list:
         forecast_date = datetime.fromtimestamp(forecast.get('dt')).date()
-        if forecast_date > today and forecast_date not in dates_set and len(dates_set) < 4:
-            dates_set.add(forecast_date)
-            temperature = forecast.get('main', {}).get('temp')
+        if forecast_date > today and forecast_date not in date_set and len(date_set) < 5:
+            date_set.add(forecast_date)
+            temp_max = forecast.get('main', {}).get('temp_max')
+            temp_min = forecast.get('main', {}).get('temp_min')
             humidity = forecast.get('main', {}).get('humidity')
             cloudiness = forecast.get('clouds', {}).get('all')
             wind_speed = forecast.get('wind', {}).get('speed')
-            st.write(f"Дата: {forecast_date.strftime('%d %B %Y')}")
-            st.write(f"Температура: {temperature}°C")
-            st.write(f"Влажность: {humidity}")
-            st.write(f"Облачность: {cloudiness}")
-            st.write(f"Скорость ветра: {wind_speed}")
-            st.write("---")
+            st.write(f'Date: {forecast_date.strftime("%d %B %Y")}')
+            st.write(f'Maxmimum temperature: {temp_max}°C')
+            st.write(f'Minimum temperature: {temp_min}°C')
+            st.write(f'Humidity: {humidity}')
+            st.write(f'Cloudiness: {cloudiness}')
+            st.write(f'Wind speed: {wind_speed}')
+            st.write('----')
 
-# Основной блок кода Streamlit
-if 'weather_data' not in st.session_state:
+
+        
+if 'current_weather' not in st.session_state:
     main_page()
 else:
     weather_page()
-
-
