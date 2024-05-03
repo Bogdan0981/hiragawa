@@ -150,45 +150,64 @@ def weather_page():
         st.error('There is not weather data. Please, try again')
 
 def display_forecast_graph(forecast_data):
-    st.subheader("График прогноза погоды")
+    if 'list' in forecast_data:
+        times = []
+        temperatures = []
+        wind_speeds = []
 
-    # Инициализация списков для данных графика
-    times = [datetime.fromtimestamp(item['dt']).strftime('%Y-%m-%d %H:%M') for item in forecast_data['list']]
-    temperatures = [item['main']['temp'] for item in forecast_data['list']]
-    wind_speeds = [item['wind']['speed'] for item in forecast_data['list']]
+        for item in forecast_data['list']:
+            # Обработка времени
+            if 'dt' in item:
+                forecast_time = datetime.fromtimestamp(item['dt']).strftime('%H:%M')
+                times.append(forecast_time)
+            else:
+                times.append('Unknown Time')
 
-    # Создание графика для температуры
-    trace_temperature = go.Scatter(
-        x=times,
-        y=temperatures,
-        mode='lines+markers',
-        name='Температура (°C)',
-        marker=dict(color='red')
-    )
+            # Обработка температур
+            if 'main' in item and 'temp' in item['main']:
+                temperatures.append(item['main']['temp'])
+            else:
+                temperatures.append(None)  # Или другое значение по умолчанию
 
-    # Создание графика для скорости ветра
-    trace_wind_speed = go.Scatter(
-        x=times,
-        y=wind_speeds,
-        mode='lines+markers',
-        name='Скорость ветра (м/с)',
-        marker=dict(color='blue')
-    )
+            # Обработка скорости ветра
+            if 'wind' in item and 'speed' in item['wind']:
+                wind_speeds.append(item['wind']['speed'])
+            else:
+                wind_speeds.append(None)  # Или другое значение по умолчанию
 
-    # Определение макета графика
-    layout = go.Layout(
-        title='Прогноз температуры и скорости ветра на 5 дней',
-        xaxis_title='Время',
-        yaxis_title='Значения',
-        margin=dict(l=40, r=40, t=40, b=40),
-        hovermode='closest'
-    )
+        # Создание графика температур
+        trace_temp = go.Scatter(
+            x=times, 
+            y=temperatures, 
+            mode='lines+markers',
+            name='Temperature',
+            line=dict(color='red', width=2),
+            marker=dict(color='red', size=8)
+        )
 
-    # Сборка данных и макета в один объект Figure
-    fig = go.Figure(data=[trace_temperature, trace_wind_speed], layout=layout)
+        # Создание графика скорости ветра
+        trace_wind = go.Scatter(
+            x=times, 
+            y=wind_speeds, 
+            mode='lines+markers',
+            name='Wind Speed',
+            line=dict(color='blue', width=2),
+            marker=dict(color='blue', size=8)
+        )
 
-    # Отображение графика в Streamlit
-    st.plotly_chart(fig, use_container_width=True)
+        # Определение макета графика
+        layout = go.Layout(
+            title="24 Hour Weather Forecast",
+            xaxis_title="Time",
+            yaxis_title="Temperature (°C) / Wind Speed (m/s)",
+            legend=dict(x=0.01, y=0.99, bordercolor="Black", borderwidth=1)
+        )
+
+        # Сборка данных и макета в один объект Figure
+        fig = go.Figure(data=[trace_temp, trace_wind], layout=layout)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.error("Forecast data is missing.")
 
 
 # функция для отображения текущей погоды
