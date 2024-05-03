@@ -201,8 +201,8 @@ def display_weather(current_weather, forecast):
     st.write('Current weather: ')
     st.write(f'Temperaturte: {cur_weather.get("temp")}°C')
     st.write(f'Humdity: {cur_weather.get("shumudity")}')
-    st.write(f'Cloudiness: {cloudiness.get('all')}')
-    st.write(f'Wind speed: {wind.get('speed')}')
+    st.write(f'Cloudiness: {cloudiness.get("all")}')
+    st.write(f'Wind speed: {wind.get("speed")}')
 
 
     st.subheader('Forecast for 5 days')
