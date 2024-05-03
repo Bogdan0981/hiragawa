@@ -199,7 +199,7 @@ def display_weather(current_weather, forecast):
     cloudiness = current_weather.get('clouds')
     wind = current_weather.get('wind')
     st.write('Current weather: ')
-    st.write(f'Temperaturte: {cur_weather.get('temp')}°C')
+    st.write(f'Temperaturte: {cur_weather.get['temp']}°C')
     st.write(f'Humdity: {cur_weather.get('humudity')}')
     st.write(f'Cloudiness: {cloudiness.get('all')}')
     st.write(f'Wind speed: {wind.get('speed')}')
