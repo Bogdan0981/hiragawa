@@ -1,5 +1,13 @@
-streamlit
-psycopg2-binary
+streamlit 
+psycopg2
 requests
-pandas
-plotly
+datetime  
+datetime 
+timedelta
+json
+pandas 
+matplotlib.pyplot 
+plotly.graph_objs 
+scipy.interpolate  
+make_interp_spline
+numpy 
