@@ -77,14 +77,13 @@ def get_current_weather_from_db(city):
 def get_forecast_from_db(city):
     with connect_db() as con:
         with con.cursor() as cur:
-            # Здесь меняем DESC на ASC, чтобы сортировать данные по возрастанию
             cur.execute('SELECT date_time, temp_min, temp_max, humidity, cloudiness, wind_speed FROM forecast WHERE city_name = %s ORDER BY date_time ASC', (city,))
             rows = cur.fetchall()
             if rows:
                 forecast_list = []
                 for row in rows:
                     forecast_entry = {
-                        'dt': int(datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S").timestamp()),  # Преобразуем date_time в timestamp
+                        'dt': int(datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S").timestamp()), 
                         'main': {
                             'temp_min': row[1],
                             'temp_max': row[2],
@@ -98,7 +97,7 @@ def get_forecast_from_db(city):
                         }
                     }
                     forecast_list.append(forecast_entry)
-                return {'list': forecast_list}  # Возвращаем словарь, имитирующий структуру API
+                return {'list': forecast_list}  
             else:
                 print(f'No forecast data found for city: {city}')
     return None
@@ -149,6 +148,7 @@ def weather_page():
     else:
         st.error('There is not weather data. Please, try again')
 
+# функция отображения графиков
 def display_forecast_graph(forecast_data):
     if 'list' in forecast_data:
         times = []
@@ -156,26 +156,23 @@ def display_forecast_graph(forecast_data):
         wind_speeds = []
 
         for item in forecast_data['list']:
-            # Обработка времени
             if 'dt' in item:
                 forecast_time = datetime.fromtimestamp(item['dt']).strftime('%H:%M')
                 times.append(forecast_time)
             else:
                 times.append('Unknown Time')
 
-            # Обработка температур
             if 'main' in item and 'temp' in item['main']:
                 temperatures.append(item['main']['temp'])
             else:
-                temperatures.append(None)  # Или другое значение по умолчанию
+                temperatures.append(None)  
 
-            # Обработка скорости ветра
             if 'wind' in item and 'speed' in item['wind']:
                 wind_speeds.append(item['wind']['speed'])
             else:
-                wind_speeds.append(None)  # Или другое значение по умолчанию
+                wind_speeds.append(None)  
 
-        # Создание графика температур
+
         trace_temp = go.Scatter(
             x=times, 
             y=temperatures, 
@@ -185,7 +182,7 @@ def display_forecast_graph(forecast_data):
             marker=dict(color='red', size=8)
         )
 
-        # Создание графика скорости ветра
+        
         trace_wind = go.Scatter(
             x=times, 
             y=wind_speeds, 
@@ -195,7 +192,6 @@ def display_forecast_graph(forecast_data):
             marker=dict(color='blue', size=8)
         )
 
-        # Определение макета графика
         layout = go.Layout(
             title="24 Hour Weather Forecast",
             xaxis_title="Time",
@@ -203,7 +199,6 @@ def display_forecast_graph(forecast_data):
             legend=dict(x=0.01, y=0.99, bordercolor="Black", borderwidth=1)
         )
 
-        # Сборка данных и макета в один объект Figure
         fig = go.Figure(data=[trace_temp, trace_wind], layout=layout)
         st.plotly_chart(fig, use_container_width=True)
     else:
