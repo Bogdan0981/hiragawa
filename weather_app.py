@@ -24,7 +24,7 @@ def check_connection():
 def connect_db():
     return psycopg2.connect (
         dbname = 'postgres',
-        user = 'postgres',
+        user = 'postgres','
         password = 'kb0904',
         host = 'localhost',
         port = '5433'
